@@ -8,7 +8,7 @@ export const getTechnicianSlotsTime = createAsyncThunk(
     try {
       const loginToken = getState().authentication?.customerData?.token;
       const { data } = await instance.get(
-        `/customer/slots?service_id=${id}&date=${date}`,
+        `/customer/slots?service_slug=${id}&date=${date}`,
         {
           withCredentials: false,
           headers: {
@@ -30,6 +30,47 @@ export const bookAppointment = createAsyncThunk(
     try {
       const loginToken = getState().authentication?.customerData?.token;
       const { data } = await instance.post(`/customer/appointments`, payload, {
+        withCredentials: false,
+        headers: {
+          "Content-type": "application/json",
+          Authorization: `Bearer ${loginToken}`,
+        },
+      });
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response.data.message || "Failed to fetch ");
+    }
+  },
+);
+export const cancelAppointment = createAsyncThunk(
+  "customer/cancel-appointment",
+  async (payload, { getState, rejectWithValue }) => {
+    try {
+      const loginToken = getState().authentication?.customerData?.token;
+      const { data } = await instance.post(
+        `/customer/cancel-appointment`,
+        payload,
+        {
+          withCredentials: false,
+          headers: {
+            "Content-type": "application/json",
+            Authorization: `Bearer ${loginToken}`,
+          },
+        },
+      );
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response.data.message || "Failed to fetch ");
+    }
+  },
+);
+
+export const getMyAppointments = createAsyncThunk(
+  "/customer/my-appointments",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const loginToken = getState().authentication?.customerData?.token;
+      const { data } = await instance.get(`/customer/my-appointments`, {
         withCredentials: false,
         headers: {
           "Content-type": "application/json",
@@ -68,6 +109,25 @@ export const getServices = createAsyncThunk(
           headers: headers,
         },
       );
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response.data.message || "Failed to fetch ");
+    }
+  },
+);
+
+export const getServiceEnquiry = createAsyncThunk(
+  "/customer/my-enquiries",
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const loginToken = getState().authentication?.customerData?.token;
+      const { data } = await instance.get(`/customer/my-enquiries`, {
+        withCredentials: false,
+        headers: {
+          "Content-type": "application/json",
+          Authorization: `Bearer ${loginToken}`,
+        },
+      });
       return data;
     } catch (error) {
       return rejectWithValue(error.response.data.message || "Failed to fetch ");

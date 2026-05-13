@@ -39,24 +39,6 @@ const SecurityTab = () => {
                     </Card.Body>
                   </Card>
                 </Col>
-                <Col lg={12}>
-                  <Card className="mb-3">
-                    <Card.Body>
-                      <h6>Two factor authentication</h6>
-                      <p>
-                        Two factor authentication provides extra protection for
-                        your account by requiring a special code.
-                      </p>
-                      <p>
-                        <strong>Note:</strong> You are only activating two
-                        factor authentication for the main password.
-                      </p>
-                      <Button variant="outline-primary">
-                        Disable two-factor authentication
-                      </Button>
-                    </Card.Body>
-                  </Card>
-                </Col>
               </Tab.Pane>
             </Tab.Content>
           </Col>

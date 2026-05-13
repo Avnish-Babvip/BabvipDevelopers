@@ -23,9 +23,12 @@ import ProtectedRoute from "../services/ProtectedRoute";
 import BookMyTechnician from "../pages/BookMyTechnician/BookMytechnician";
 import BookingCalendar from "../pages/BookMyTechnician/BookingCalendar";
 import InternshipTraining from "../pages/Internship/InternshipTraining";
+import MyAppointments from "../pages/Dashboard/MyAppointments";
+import ServicePlanEnquiry from "../pages/Dashboard/ServicePlanEnquiry";
 
 // Lazy Loading 😴
 const Blog = lazy(() => import("../pages/Blog"));
+const Insight = lazy(() => import("../pages/Insight"));
 const HelpCenter = lazy(() => import("../pages/HelpCenter"));
 const Portfolio = lazy(() => import("../pages/Portfolio"));
 
@@ -34,7 +37,6 @@ const Portfolio = lazy(() => import("../pages/Portfolio"));
 // import Portfolio from "../components/Home/Portfolio/Portfolio";
 
 // ---------------------------------------------------------------------------------------------------
-console.log("enter inside the routes page");
 export const appRouter = createBrowserRouter([
   {
     path: "/",
@@ -82,7 +84,11 @@ export const appRouter = createBrowserRouter([
       },
       {
         path: "/book-calendar/:id",
-        element: <BookingCalendar />,
+        element: (
+          <ProtectedRoute>
+            <BookingCalendar />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/products-services",
@@ -91,6 +97,22 @@ export const appRouter = createBrowserRouter([
       {
         path: "/products-services/:slug",
         element: <ServicePlans />,
+      },
+      {
+        path: "/customer/appointment",
+        element: (
+          <ProtectedRoute>
+            <MyAppointments />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/customer/plan-enquiry",
+        element: (
+          <ProtectedRoute>
+            <ServicePlanEnquiry />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/customer/dashboard",
@@ -138,6 +160,14 @@ export const appRouter = createBrowserRouter([
           <ProtectedRoute>
             <DashboardChangePassword />
           </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/insights/:slug",
+        element: (
+          <Suspense fallback={<Loader />}>
+            <Insight />
+          </Suspense>
         ),
       },
       {

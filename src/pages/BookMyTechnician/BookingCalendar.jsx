@@ -2,16 +2,24 @@ import React, { useEffect, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import { useDispatch, useSelector } from "react-redux";
-import { getTechnicianSlotsTime } from "../../features/actions/services";
-import { useLocation, useParams } from "react-router-dom";
+import {
+  bookAppointment,
+  getTechnicianSlotsTime,
+} from "../../features/actions/services";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import ButtonLoader from "../../components/Loader/ButtonLoader";
 
 const BookingCalendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState(null);
+  const navigate = useNavigate();
   const { id } = useParams();
   const { state } = useLocation();
   const dispatch = useDispatch();
-  const { slotTimeData } = useSelector((state) => state.services);
+  const { slotTimeData, isEnquirySuccess, bookingLoading } = useSelector(
+    (state) => state.services,
+  );
+  const [message, setMessage] = useState("");
 
   const slots = Array.isArray(slotTimeData) ? slotTimeData : [];
 
@@ -22,6 +30,19 @@ const BookingCalendar = () => {
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  const handleBooking = () => {
+    const formattedDate = formatDate(selectedDate);
+
+    const payload = {
+      service_slug: id,
+      appointment_date: formattedDate,
+      appointment_time: selectedTime,
+      message: message,
+    };
+
+    dispatch(bookAppointment(payload)); // 👈 your API
   };
 
   // ✅ CALL API WHEN DATE CHANGES
@@ -38,13 +59,14 @@ const BookingCalendar = () => {
     setSelectedTime(null);
   }, [selectedDate]);
 
-  console.log(state);
+  useEffect(() => {
+    if (isEnquirySuccess) navigate("/customer/appointment");
+  }, [isEnquirySuccess]);
 
   return (
     <div className="container py-5">
       <h2 className="mb-2">Schedule your service</h2>
       <p className="text-muted">Check availability and book your slot</p>
-
       <div className="row mt-4">
         {/* LEFT */}
         <div className="col-md-8">
@@ -95,7 +117,6 @@ const BookingCalendar = () => {
             )}
           </div>
         </div>
-
         {/* RIGHT */}
         <div className="col-md-4">
           <div
@@ -125,8 +146,23 @@ const BookingCalendar = () => {
               </div>
             </div>
 
+            <div className="mt-3">
+              <label className="form-label small text-muted">
+                Message (optional)
+              </label>
+
+              <textarea
+                className="form-control"
+                rows={3}
+                placeholder="Enter your message..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+              />
+            </div>
+
             {/* Button */}
             <button
+              onClick={handleBooking}
               disabled={!selectedTime}
               className="btn w-100 mt-4"
               style={{
@@ -136,7 +172,7 @@ const BookingCalendar = () => {
                 opacity: selectedTime ? 1 : 0.6,
               }}
             >
-              Next
+              {bookingLoading ? <ButtonLoader /> : `Book now`}
             </button>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { HelmetProvider } from "react-helmet-async";
 import Loader from "./components/Loader/Loader";
 import { Toaster } from "sonner";
 import { getAllSiteSettings } from "./features/actions/siteSettings";
+import { clearLoading } from "./features/slices/dynamicRootPage";
 
 function App() {
   const dispatch = useDispatch();
@@ -58,35 +59,9 @@ function App() {
         .forEach((el) => el.remove());
     };
   }, [siteSetting]);
-
-  // useEffect(() => {
-  //   // Disable Right Click
-  //   const disableRightClick = (event) => {
-  //     event.preventDefault();
-  //   };
-
-  //   // Disable Copy, Paste, Cut & DevTools Shortcuts
-  //   const disableKeyboardShortcuts = (event) => {
-  //     if (
-  //       event.ctrlKey &&
-  //       ["c", "v", "x", "u", "s", "p"].includes(event.key.toLowerCase()) // Prevent Copy, Paste, Cut, View Source, Save
-  //     ) {
-  //       event.preventDefault();
-  //     }
-  //     if ([123, 73, 74].includes(event.keyCode) && (event.ctrlKey || event.metaKey)) {
-  //       event.preventDefault();
-  //     }
-  //   };
-
-  //   document.addEventListener("contextmenu", disableRightClick);
-  //   document.addEventListener("keydown", disableKeyboardShortcuts);
-
-  //   return () => {
-  //     document.removeEventListener("contextmenu", disableRightClick);
-  //     document.removeEventListener("keydown", disableKeyboardShortcuts);
-  //   };
-  // }, []);
-
+  useEffect(() => {
+    dispatch(clearLoading());
+  });
   return (
     <HelmetProvider>
       <Toaster richColors containerClassName="overflow-auto" />

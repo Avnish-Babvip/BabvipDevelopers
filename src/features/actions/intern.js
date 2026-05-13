@@ -26,13 +26,38 @@ export const sendInternInfo = createAsyncThunk(
         {
           withCredentials: false,
           headers: headers,
-        }
+        },
       );
       return data;
     } catch (error) {
       return rejectWithValue(
-        error.response.data.message || "Failed to post intern info"
+        error.response.data.message || "Failed to post intern info",
       );
     }
-  }
+  },
+);
+
+export const getDepartmentWithCourses = createAsyncThunk(
+  "/customer/courses",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await instance.get(`/customer/courses`);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response.data.message || "Failed to fetch ");
+    }
+  },
+);
+
+export const storeCourseEnquiry = createAsyncThunk(
+  "customer/course-enquiry",
+  async (payload, { getState, rejectWithValue }) => {
+    try {
+      const loginToken = getState().authentication?.customerData?.token;
+      const { data } = await instance.post(`/customer/course-enquiry`, payload);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response.data.message || "Failed to fetch ");
+    }
+  },
 );

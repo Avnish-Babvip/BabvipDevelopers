@@ -20,6 +20,7 @@ import countryStateCity from "./slices/countryStateCity";
 import services from "./slices/services";
 import dashboard from "./slices/dashboard";
 import references from "./slices/references";
+import chatbot from "./slices/chatbot";
 
 const rootReducer = combineReducers({
   headMenu,
@@ -39,6 +40,7 @@ const rootReducer = combineReducers({
   services,
   dashboard,
   references,
+  chatbot,
 });
 
 // Redux-persist configuration

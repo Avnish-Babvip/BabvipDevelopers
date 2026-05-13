@@ -85,7 +85,7 @@ const Services = () => {
                           <p class="mb-0">{srv?.description}</p>
                         </div>
                         <Link
-                          to={`${srv?.id}`}
+                          to={`${srv?.service_slug}`}
                           state={srv}
                           class="link-with-icon text-decoration-none mt-4"
                         >

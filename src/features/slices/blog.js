@@ -1,25 +1,37 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { getDetailBlogBySlug, getLatestThreeBlogs, getLatestTwoBlogs, getPaginateBlogs } from "../actions/blog";
-
+import {
+  getDetailBlogBySlug,
+  getDetailInsightBySlug,
+  getLatestThreeBlogs,
+  getLatestThreeInsights,
+  getLatestTwoBlogs,
+  getLatestTwoInsights,
+  getPaginateBlogs,
+  getPaginateInsights,
+} from "../actions/blog";
 
 const initialState = {
   isLoading: false,
   blogData: [],
+  insightData: [],
   latestBlogData: [],
+  latestInsightData: [],
   twoBlogData: [],
-  detailBlogData:{},
+  twoInsightData: [],
+  detailBlogData: {},
+  detailInsightData: {},
   errorMessage: "",
 };
 
 // ---------------------------------------------------------------------------------------
 
- const blogSlice = createSlice({
+const blogSlice = createSlice({
   name: "blogSlice",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-   
+
       .addCase(getLatestThreeBlogs.pending, (state) => {
         state.isLoading = true;
         state.errorMessage = "";
@@ -27,14 +39,40 @@ const initialState = {
       .addCase(getLatestThreeBlogs.fulfilled, (state, action) => {
         state.isLoading = false;
         state.errorMessage = "";
-        state.latestBlogData = action.payload.data; 
+        state.latestBlogData = action.payload.data;
       })
       .addCase(getLatestThreeBlogs.rejected, (state, action) => {
         state.isLoading = false;
         state.isSuccess = false;
         state.errorMessage = action.payload || "Failed to fetch blog data.";
       })
-   
+      .addCase(getLatestThreeInsights.pending, (state) => {
+        state.isLoading = true;
+        state.errorMessage = "";
+      })
+      .addCase(getLatestThreeInsights.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.errorMessage = "";
+        state.latestInsightData = action.payload.data;
+      })
+      .addCase(getLatestThreeInsights.rejected, (state, action) => {
+        state.isLoading = false;
+        state.errorMessage = action.payload || "Failed to fetch blog data.";
+      })
+
+      .addCase(getLatestTwoInsights.pending, (state) => {
+        state.isLoading = true;
+        state.errorMessage = "";
+      })
+      .addCase(getLatestTwoInsights.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.errorMessage = "";
+        state.twoInsightData = action.payload.data;
+      })
+      .addCase(getLatestTwoInsights.rejected, (state, action) => {
+        state.isLoading = false;
+        state.errorMessage = action.payload || "Failed to fetch blog data.";
+      })
       .addCase(getLatestTwoBlogs.pending, (state) => {
         state.isLoading = true;
         state.errorMessage = "";
@@ -42,11 +80,24 @@ const initialState = {
       .addCase(getLatestTwoBlogs.fulfilled, (state, action) => {
         state.isLoading = false;
         state.errorMessage = "";
-        state.twoBlogData = action.payload.data; 
+        state.twoBlogData = action.payload.data;
       })
       .addCase(getLatestTwoBlogs.rejected, (state, action) => {
         state.isLoading = false;
         state.isSuccess = false;
+        state.errorMessage = action.payload || "Failed to fetch blog data.";
+      })
+      .addCase(getPaginateInsights.pending, (state) => {
+        state.isLoading = true;
+        state.errorMessage = "";
+      })
+      .addCase(getPaginateInsights.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.errorMessage = "";
+        state.insightData = action.payload.data;
+      })
+      .addCase(getPaginateInsights.rejected, (state, action) => {
+        state.isLoading = false;
         state.errorMessage = action.payload || "Failed to fetch blog data.";
       })
       .addCase(getPaginateBlogs.pending, (state) => {
@@ -56,7 +107,7 @@ const initialState = {
       .addCase(getPaginateBlogs.fulfilled, (state, action) => {
         state.isLoading = false;
         state.errorMessage = "";
-        state.blogData = action.payload.data; 
+        state.blogData = action.payload.data;
       })
       .addCase(getPaginateBlogs.rejected, (state, action) => {
         state.isLoading = false;
@@ -70,14 +121,27 @@ const initialState = {
       .addCase(getDetailBlogBySlug.fulfilled, (state, action) => {
         state.isLoading = false;
         state.errorMessage = "";
-        state.detailBlogData = action.payload; 
+        state.detailBlogData = action.payload;
       })
       .addCase(getDetailBlogBySlug.rejected, (state, action) => {
         state.isLoading = false;
         state.isSuccess = false;
         state.errorMessage = action.payload || "Failed to fetch head menu.";
       })
-
+      .addCase(getDetailInsightBySlug.pending, (state) => {
+        state.isLoading = true;
+        state.errorMessage = "";
+      })
+      .addCase(getDetailInsightBySlug.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.errorMessage = "";
+        state.detailInsightData = action.payload;
+      })
+      .addCase(getDetailInsightBySlug.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = false;
+        state.errorMessage = action.payload || "Failed to fetch head menu.";
+      });
   },
 });
 

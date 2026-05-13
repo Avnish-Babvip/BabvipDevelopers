@@ -14,8 +14,8 @@ const DashboardDefaultLayout = () => {
       <div className="d-flex nunitoSans-font min-vh-100 position-relative">
         {/* Sidebar */}
         <div
-          className={`bg-light d-none d-lg-block`}
-          style={{ width: "220px" }}
+          className={`bg-light d-none  d-lg-block`}
+          style={{ width: "230px", zIndex: 1000 }}
         >
           <DashboardSidebar
             activeMenu={activeMenu}

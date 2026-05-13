@@ -7,6 +7,7 @@ import { IoHomeOutline } from "react-icons/io5";
 import { MdPayment, MdVpnKey } from "react-icons/md";
 import { FaRegUser } from "react-icons/fa";
 import { setActiveAccountCenterTab } from "../../features/slices/references";
+import { FiCalendar } from "react-icons/fi";
 
 const DashboardSidebar = ({ closeSidebar }) => {
   const assetRoute = `${
@@ -23,6 +24,16 @@ const DashboardSidebar = ({ closeSidebar }) => {
   // All non-dropdown menu items in order
   const menuItems = [
     { label: "Home", icon: IoHomeOutline, url: "/customer/dashboard" },
+    {
+      label: "My Appointments",
+      icon: FiCalendar,
+      url: "/customer/appointment",
+    },
+    {
+      label: "Service Plan Enquiry",
+      icon: RiBox3Fill,
+      url: "/customer/plan-enquiry",
+    },
     { label: "My Products", icon: RiBox3Fill, url: "/customer/products" },
     { label: "Profile", icon: FaRegUser, url: "/customer/profile" },
     { label: "Billing", icon: MdPayment, url: "/customer/billing" },
@@ -56,7 +67,7 @@ const DashboardSidebar = ({ closeSidebar }) => {
                 item.url && navigate(item.url);
                 if (closeSidebar) closeSidebar();
               }}
-              className="d-flex align-items-center gap-3 px-4 py-3"
+              className="d-flex align-items-center gap-3 px-3 py-3"
               style={{
                 cursor: "pointer",
                 color: isActive ? "#0096FF" : "",

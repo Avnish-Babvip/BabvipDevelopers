@@ -22,19 +22,20 @@ import HelpCenter from "../components/Styles/HelpCenter/HelpCenter";
 import BlogStyle from "../components/Styles/BlogStyle/BlogStyle";
 import PrivacyAndTerms from "../components/Styles/PrivacyAndTerms/PrivacyAndTerms";
 import NotFound from "./NotFound";
+import Insight from "../components/Styles/Insight/Insight";
 
 const DynamicRootPage = () => {
   const { slug } = useParams();
   const dispatch = useDispatch();
   const { page_data, data } = useSelector(
-    (state) => state.dynamicRootPage.routeData
+    (state) => state.dynamicRootPage.routeData,
   );
   const { isLoading: isDynamicLoading } = useSelector(
-    (state) => state.dynamicRootPage
+    (state) => state.dynamicRootPage,
   );
 
   const { homeData, isLoading: isHomeLoading } = useSelector(
-    (state) => state.home
+    (state) => state.home,
   );
 
   const isLoading = isDynamicLoading || isHomeLoading;
@@ -75,6 +76,7 @@ const DynamicRootPage = () => {
     "Help Center": HelpCenter,
     Portfolio: Portfolio,
     "Privacy & Terms": PrivacyAndTerms,
+    Insight: Insight,
   };
 
   useEffect(() => {
@@ -166,7 +168,7 @@ const DynamicRootPage = () => {
 
           if (!Component) {
             console.warn(
-              `Component for section "${item?.section_name}" not found.`
+              `Component for section "${item?.section_name}" not found.`,
             );
             return null; // Prevents React from crashing
           }

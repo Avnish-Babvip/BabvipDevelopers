@@ -13,6 +13,8 @@ const BookMyTechnician = () => {
   const data = Array.isArray(categoryData) && categoryData;
   const services = Array.isArray(serviceData) ? serviceData : [];
 
+  const { isUserLoggedIn } = useSelector((state) => state.authentication);
+
   useEffect(() => {
     if (id) {
       dispatch(getServices(id));
@@ -85,7 +87,7 @@ const BookMyTechnician = () => {
                         </div>
                         <Link
                           state={srv}
-                          to={`/book-calendar/${srv.id}`}
+                          to={`/book-calendar/${srv.service_slug}`}
                           className="btn btn-sm btn-primary mt-5   w-100"
                         >
                           Book Service

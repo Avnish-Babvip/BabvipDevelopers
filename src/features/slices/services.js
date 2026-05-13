@@ -1,6 +1,9 @@
 import { createSlice } from "@reduxjs/toolkit";
 import {
   bookAppointment,
+  cancelAppointment,
+  getMyAppointments,
+  getServiceEnquiry,
   getServices,
   getServicesCategory,
   getTechnicianSlotsTime,
@@ -10,9 +13,12 @@ import { toast } from "sonner";
 
 const initialState = {
   serviceLoading: false,
+  bookingLoading: false,
   categoryData: [],
   serviceData: [],
+  serviceEnquiryData: [],
   slotTimeData: [],
+  appointmentData: [],
   errorMessage: "",
   isEnquirySuccess: false,
 };
@@ -27,6 +33,7 @@ const servicesSlice = createSlice({
     builder
 
       .addCase(getTechnicianSlotsTime.pending, (state) => {
+        state.isEnquirySuccess = false;
         state.errorMessage = "";
         state.serviceLoading = false;
       })
@@ -35,6 +42,18 @@ const servicesSlice = createSlice({
         state.slotTimeData = action.payload.data;
       })
       .addCase(getTechnicianSlotsTime.rejected, (state, action) => {
+        state.errorMessage = action.payload || "Failed ";
+      })
+      .addCase(getMyAppointments.pending, (state) => {
+        state.errorMessage = "";
+        state.serviceLoading = false;
+        state.isEnquirySuccess = false;
+      })
+      .addCase(getMyAppointments.fulfilled, (state, action) => {
+        state.errorMessage = "";
+        state.appointmentData = action.payload.data;
+      })
+      .addCase(getMyAppointments.rejected, (state, action) => {
         state.errorMessage = action.payload || "Failed ";
       })
       .addCase(getServicesCategory.pending, (state) => {
@@ -49,6 +68,7 @@ const servicesSlice = createSlice({
       .addCase(getServicesCategory.rejected, (state, action) => {
         state.errorMessage = action.payload || "Failed ";
       })
+
       .addCase(getServices.pending, (state) => {
         state.errorMessage = "";
         state.serviceLoading = false;
@@ -62,6 +82,16 @@ const servicesSlice = createSlice({
         state.errorMessage = action.payload || "Failed ";
       })
 
+      .addCase(getServiceEnquiry.pending, (state) => {
+        state.errorMessage = "";
+      })
+      .addCase(getServiceEnquiry.fulfilled, (state, action) => {
+        state.errorMessage = "";
+        state.serviceEnquiryData = action.payload.data.data;
+      })
+      .addCase(getServiceEnquiry.rejected, (state, action) => {
+        state.errorMessage = action.payload || "Failed ";
+      })
       .addCase(storeCustomerEnquiry.pending, (state) => {
         state.serviceLoading = true;
         state.isEnquirySuccess = false;
@@ -79,17 +109,35 @@ const servicesSlice = createSlice({
         state.errorMessage = action.payload || "Failed ";
         toast(action.payload);
       })
-      .addCase(bookAppointment.pending, (state) => {
+
+      .addCase(cancelAppointment.pending, (state) => {
         state.serviceLoading = true;
         state.errorMessage = "";
       })
-      .addCase(bookAppointment.fulfilled, (state, action) => {
+      .addCase(cancelAppointment.fulfilled, (state, action) => {
         state.serviceLoading = false;
         state.errorMessage = "";
+        toast("Appointment cancelled successfully.");
+      })
+      .addCase(cancelAppointment.rejected, (state, action) => {
+        state.serviceLoading = false;
+        state.errorMessage = action.payload || "Failed ";
+        toast(action.payload);
+      })
+      .addCase(bookAppointment.pending, (state) => {
+        state.bookingLoading = true;
+        state.errorMessage = "";
+        state.isEnquirySuccess = false;
+      })
+      .addCase(bookAppointment.fulfilled, (state, action) => {
+        state.bookingLoading = false;
+        state.errorMessage = "";
+        state.isEnquirySuccess = true;
         toast("Your appointment booked successfully.");
       })
       .addCase(bookAppointment.rejected, (state, action) => {
-        state.serviceLoading = false;
+        state.bookingLoading = false;
+        state.isEnquirySuccess = false;
         state.errorMessage = action.payload || "Failed ";
         toast(action.payload);
       });

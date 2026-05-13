@@ -5,6 +5,7 @@ import Header from "../Header/Header";
 import Footer from "../Footer/Footer";
 import ErrorBoundary from "../../components/ErrorBoundary/ErrorBoundary";
 import DashboardDefaultLayout from "./DashboardDefaultLayout";
+import ChatBot from "../../components/Chatbot";
 
 // --------------------------------------------------------------------------------
 
@@ -21,12 +22,15 @@ const DefaultLayout = () => {
   }, [pathname]); // Runs when route changes
 
   return isCustomerSlugRoute ? (
-    <DashboardDefaultLayout />
+    <>
+      <DashboardDefaultLayout /> <ChatBot />
+    </>
   ) : (
     <div>
       <ErrorBoundary>
         {!isAuthenticationSlugRoute && <Header />}
         <Outlet />
+        <ChatBot />
         {!isAuthenticationSlugRoute && <Footer />}
       </ErrorBoundary>
     </div>

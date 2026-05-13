@@ -214,7 +214,7 @@ const customerSlice = createSlice({
         state.errorMessage = "";
         state.isUserLoggedIn = false;
         state.customerData = {};
-        toast("Log out Successfull.", {
+        toast("Log out Successful.", {
           description: formattedDate,
         });
       })
