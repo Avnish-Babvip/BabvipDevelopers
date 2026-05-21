@@ -2,6 +2,36 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { instance } from "../../services/axiosInterceptor";
 import axios from "axios";
 
+export const closeChat = createAsyncThunk(
+  "chat/closeChat",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const { data } = await instance.post("/chat/close-chat", payload);
+
+      return data;
+    } catch (error) {
+      return rejectWithValue(
+        error?.response?.data?.message || error?.message || "Failed ",
+      );
+    }
+  },
+);
+
+export const sendImage = createAsyncThunk(
+  "chat/upload",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const { data } = await instance.post("/chat/upload", payload);
+
+      return data;
+    } catch (error) {
+      return rejectWithValue(
+        error?.response?.data?.message || error?.message || "Failed ",
+      );
+    }
+  },
+);
+
 export const connectSupport = createAsyncThunk(
   "chat/connect-support",
   async (payload, { rejectWithValue }) => {

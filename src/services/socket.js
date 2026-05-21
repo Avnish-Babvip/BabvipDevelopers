@@ -6,13 +6,12 @@ window.Pusher = Pusher;
 const echo = new Echo({
   broadcaster: "reverb",
 
-  key: "yc5yhvxfrdjojufhjxdw",
+  key: "local",
 
   wsHost: "babvipdevelopers.com",
 
-  wsPort: 8080,
-
-  wssPort: 8080,
+  wsPort: 443,
+  wssPort: 443,
 
   forceTLS: true,
 

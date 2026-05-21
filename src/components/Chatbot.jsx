@@ -6,64 +6,200 @@ import { GrAttachment } from "react-icons/gr";
 import { PiDownloadSimpleBold } from "react-icons/pi";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  closeChat,
   connectSupport,
   getChatService,
   guestDetails,
+  sendImage,
   sendMessage,
   serviceQuestions,
   validateCustomer,
 } from "../features/actions/chatbot";
 import echo from "../services/socket";
 import { instance } from "../services/axiosInterceptor";
+import {
+  addMessage,
+  clearChat,
+  removeMessage,
+  setGuestData,
+  setSelectedService,
+  setStep,
+  updateMessage,
+} from "../features/slices/chatbot";
 
 const ChatBot = () => {
-  const [sessionId, setSessionId] = useState(null);
-  const [selectedService, setSelectedService] = useState(null);
+  const fileInputRef = useRef(null);
   const dispatch = useDispatch();
+  const [isTyping, setIsTyping] = useState(false);
+  const downloadFile = async (type) => {
+    try {
+      const response = await instance.get(
+        `/export/${type}/${supportData?.session_id}`,
+        {
+          responseType: "blob",
+        },
+      );
 
-  const { serviceData, questionData } = useSelector((state) => state.chatbot);
+      // create file url
+      const blob = new Blob([response.data]);
+
+      const url = window.URL.createObjectURL(blob);
+
+      // create link
+      const link = document.createElement("a");
+
+      link.href = url;
+
+      link.download = `chat-transcript.${type}`;
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      link.remove();
+
+      // cleanup
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.log(error);
+
+      dispatch(
+        addMessage({
+          sender: "bot",
+          text: "Failed to download transcript.",
+        }),
+      );
+    }
+  };
+
+  const {
+    serviceData,
+    questionData,
+    supportData,
+    messages,
+    step,
+    guestData,
+    selectedService,
+  } = useSelector((state) => state.chatbot);
   const [isOpen, setIsOpen] = useState(false);
-
-  const [messages, setMessages] = useState([
-    {
-      sender: "bot",
-      text: "Welcome To Babvip Support. Do you have Customer ID? (Yes/No)",
-    },
-  ]);
 
   const [input, setInput] = useState("");
 
   const [showMenu, setShowMenu] = useState(false);
-
-  const [step, setStep] = useState("askCustomerId");
-
-  const [guestData, setGuestData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-  });
 
   const menuRef = useRef(null);
 
   const chatEndRef = useRef(null);
 
   const restartChat = () => {
-    setMessages([
-      {
-        sender: "bot",
-        text: "Welcome To Babvip Support. Do you have Customer ID? (Yes/No)",
-      },
-    ]);
+    dispatch(clearChat());
+  };
 
-    setInput("");
+  const typingTimeoutRef = useRef(null);
 
-    setStep("askCustomerId");
+  const debounceTimeoutRef = useRef(null);
 
-    setGuestData({
-      name: "",
-      phone: "",
-      email: "",
-    });
+  const handleTyping = (value) => {
+    setInput(value);
+
+    // only when agent connected
+    if (step !== "chatStarted") return;
+
+    // clear old debounce timer
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // debounce api call
+    debounceTimeoutRef.current = setTimeout(async () => {
+      try {
+        await instance.post("chat/typing", {
+          session_id: supportData?.session_id,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    }, 500);
+
+    // reset typing visibility timer
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      typingTimeoutRef.current = null;
+    }, 1500);
+  };
+
+  const handleCloseChat = async () => {
+    try {
+      await dispatch(
+        closeChat({
+          session_id: supportData?.session_id,
+        }),
+      ).unwrap();
+
+      setInput("");
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    // 🔥 prevent upload without session
+    if (!supportData?.session_id) {
+      alert("Please start the chat first before uploading images.");
+      return;
+    }
+
+    const localPreview = URL.createObjectURL(file);
+    // preview message
+    const tempId = Date.now();
+
+    dispatch(
+      addMessage({
+        tempId,
+        type: "image",
+        image: localPreview,
+        sender: "user",
+        isUploading: true,
+      }),
+    );
+
+    try {
+      const formData = new FormData();
+
+      formData.append("session_id", supportData?.session_id);
+      formData.append("file", file);
+
+      const response = await dispatch(sendImage(formData)).unwrap();
+      dispatch(
+        updateMessage({
+          matchField: "tempId",
+          matchValue: tempId,
+          updatedData: {
+            image:
+              response?.image_url ||
+              response?.payload?.image_url ||
+              localPreview,
+
+            isUploading: false,
+          },
+        }),
+      );
+    } catch (error) {
+      dispatch(
+        removeMessage({
+          matchField: "tempId",
+          matchValue: tempId,
+        }),
+      );
+    }
+    e.target.value = "";
   };
 
   /* =========================
@@ -93,7 +229,7 @@ const ChatBot = () => {
       text: messageText,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    dispatch(addMessage(userMessage));
 
     setInput("");
 
@@ -103,25 +239,22 @@ const ChatBot = () => {
 
     if (step === "askCustomerId") {
       if (messageText.toLowerCase() === "yes") {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please enter your Customer ID",
-          },
-        ]);
+          }),
+        );
 
-        setStep("askCustomerNumber");
+        dispatch(setStep("askCustomerNumber"));
       } else if (messageText.toLowerCase() === "no") {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please enter your full name",
-          },
-        ]);
-
-        setStep("askGuestName");
+          }),
+        );
+        dispatch(setStep("askGuestName"));
       }
 
       return;
@@ -134,11 +267,12 @@ const ChatBot = () => {
       const customerPayload = {
         customer_id: messageText,
       };
-
-      setGuestData((prev) => ({
-        ...prev,
-        customer_id: messageText,
-      }));
+      dispatch(
+        setGuestData({
+          ...guestData,
+          customer_id: messageText,
+        }),
+      );
 
       try {
         const response = await dispatch(
@@ -148,29 +282,44 @@ const ChatBot = () => {
         // GET SERVICES
         await dispatch(getChatService()).unwrap();
 
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: response?.message || "Customer ID validated successfully.",
-          },
+          }),
+        );
 
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please select a service.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("showServices");
+        dispatch(setStep("showServices"));
       } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: error || "Invalid Customer ID. Please try again.",
-          },
-        ]);
+          }),
+        );
+
+        dispatch(
+          addMessage({
+            sender: "bot",
+            text: "If you forgot your Customer ID, you can restart the chat and continue as Guest.",
+          }),
+        );
+
+        dispatch(
+          addMessage({
+            sender: "bot",
+            text: "Click Restart Chat below to start again.",
+          }),
+        );
+
+        dispatch(setStep("chatClosed"));
       }
 
       return;
@@ -183,39 +332,35 @@ const ChatBot = () => {
       );
 
       if (!selected) {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please select a valid service.",
-          },
-        ]);
+          }),
+        );
 
         return;
       }
 
       try {
-        setSelectedService(selected);
+        dispatch(setSelectedService(selected));
         // GET QUESTIONS
         await dispatch(serviceQuestions(selected?.id)).unwrap();
-
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please select a question.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("showQuestions");
+        dispatch(setStep("showQuestions"));
       } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: error || "Failed to fetch questions.",
-          },
-        ]);
+          }),
+        );
       }
 
       return;
@@ -228,27 +373,24 @@ const ChatBot = () => {
       );
 
       if (!selectedQuestion) {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please select a valid question.",
-          },
-        ]);
+          }),
+        );
 
         return;
       }
 
-      setMessages((prev) => [
-        ...prev,
-
-        {
+      dispatch(
+        addMessage({
           sender: "bot",
           text: selectedQuestion?.answer || "Answer not found.",
-        },
-      ]);
+        }),
+      );
 
-      setStep("afterAnswer");
+      dispatch(setStep("afterAnswer"));
 
       return;
     }
@@ -257,20 +399,20 @@ const ChatBot = () => {
     ========================= */
 
     if (step === "askGuestName") {
-      setGuestData((prev) => ({
-        ...prev,
-        name: messageText,
-      }));
-
-      setMessages((prev) => [
-        ...prev,
-        {
+      dispatch(
+        setGuestData({
+          ...guestData,
+          name: messageText,
+        }),
+      );
+      dispatch(
+        addMessage({
           sender: "bot",
           text: "Please enter your phone number",
-        },
-      ]);
+        }),
+      );
 
-      setStep("askGuestPhone");
+      dispatch(setStep("askGuestPhone"));
 
       return;
     }
@@ -285,32 +427,30 @@ const ChatBot = () => {
 
       // VALIDATE
       if (cleanPhone.length !== 10) {
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Phone number must be 10 digits. Please enter a valid mobile number.",
-          },
-        ]);
+          }),
+        );
 
         return;
       }
 
-      setGuestData((prev) => ({
-        ...prev,
-        phone: cleanPhone,
-      }));
-
-      setMessages((prev) => [
-        ...prev,
-        {
+      dispatch(
+        setGuestData({
+          ...guestData,
+          phone: cleanPhone,
+        }),
+      );
+      dispatch(
+        addMessage({
           sender: "bot",
           text: "Please enter your email address",
-        },
-      ]);
+        }),
+      );
 
-      setStep("askGuestEmail");
+      dispatch(setStep("askGuestEmail"));
 
       return;
     }
@@ -323,15 +463,12 @@ const ChatBot = () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       if (!emailRegex.test(messageText)) {
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please enter a valid email address.",
-          },
-        ]);
-
+          }),
+        );
         return;
       }
 
@@ -340,7 +477,7 @@ const ChatBot = () => {
         email: messageText,
       };
 
-      setGuestData(finalGuestData);
+      dispatch(setGuestData(finalGuestData));
 
       try {
         // const guestResponse = await dispatch(
@@ -353,37 +490,29 @@ const ChatBot = () => {
 
         await dispatch(getChatService()).unwrap();
 
-        setMessages((prev) => [
-          ...prev,
-
-          // {
-          //   sender: "bot",
-          //   text: guestResponse?.message || "Guest details saved successfully.",
-          // },
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please select a service.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("showServices");
+        dispatch(setStep("showServices"));
       } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: error || "Failed to save guest details.",
-          },
-
-          {
+          }),
+        );
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please click Retry to submit your details again.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("retryGuestDetails");
+        dispatch(setStep("retryGuestDetails"));
       }
 
       return;
@@ -391,13 +520,12 @@ const ChatBot = () => {
 
     if (step === "retryGuestDetails") {
       if (messageText.toLowerCase() !== "retry") {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please restart the chat.",
-          },
-        ]);
+          }),
+        );
 
         return;
       }
@@ -413,29 +541,28 @@ const ChatBot = () => {
 
         await dispatch(getChatService()).unwrap();
 
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: guestResponse?.message || "Guest details saved successfully.",
-          },
+          }),
+        );
 
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please select a service.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("showServices");
+        dispatch(setStep("showServices"));
       } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: error || "Retry failed. Please try again.",
-          },
-        ]);
+          }),
+        );
       }
 
       return;
@@ -446,31 +573,27 @@ const ChatBot = () => {
      BACK TO SERVICES
   ========================= */
       if (messageText.toLowerCase() === "connect to agent") {
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Would you like to connect with support agent?",
-          },
-        ]);
+          }),
+        );
 
-        setStep("connectSupport");
+        dispatch(setStep("connectSupport"));
 
         return;
       }
 
       if (messageText.toLowerCase() === "back to services") {
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please select a service.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("showServices");
+        dispatch(setStep("showServices"));
 
         return;
       }
@@ -480,26 +603,26 @@ const ChatBot = () => {
   ========================= */
 
       if (messageText.toLowerCase() === "close chat") {
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Thank you for contacting Babvip Support 😊",
-          },
-
-          {
+          }),
+        );
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Chat closed successfully.",
-          },
-
-          {
+          }),
+        );
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Click Restart Chat to start again.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("chatClosed");
+        dispatch(setStep("chatClosed"));
 
         return;
       }
@@ -508,34 +631,33 @@ const ChatBot = () => {
    INVALID OPTION
 ========================= */
 
-      setMessages((prev) => [
-        ...prev,
-
-        {
+      dispatch(
+        addMessage({
           sender: "bot",
           text: "Sorry, I couldn't understand your request.",
-        },
+        }),
+      );
 
-        {
+      dispatch(
+        addMessage({
           sender: "bot",
           text: "Would you like to connect with support agent?",
-        },
-      ]);
+        }),
+      );
 
-      setStep("connectSupport");
+      dispatch(setStep("connectSupport"));
 
       return;
     }
 
     if (step === "connectSupport") {
       if (messageText.toLowerCase() !== "connect to agent") {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please click Connect To Agent.",
-          },
-        ]);
+          }),
+        );
 
         return;
       }
@@ -553,27 +675,21 @@ const ChatBot = () => {
         };
 
         const response = await dispatch(connectSupport(payload)).unwrap();
-
-        setSessionId(response?.session_id);
-
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please wait for agent to reply.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("chatStarted");
+        dispatch(setStep("chatStarted"));
       } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: error || "Failed to connect support.",
-          },
-        ]);
+          }),
+        );
       }
 
       return;
@@ -583,15 +699,14 @@ const ChatBot = () => {
     if (step === "agentConfirmation") {
       // NO
       if (messageText.toLowerCase() === "no") {
-        setMessages((prev) => [
-          ...prev,
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: "Please choose an option below.",
-          },
-        ]);
+          }),
+        );
 
-        setStep("afterAnswer");
+        dispatch(setStep("afterAnswer"));
 
         return;
       }
@@ -610,40 +725,34 @@ const ChatBot = () => {
             })),
           };
 
-          const response = await dispatch(connectSupport(payload)).unwrap();
+          await dispatch(connectSupport(payload)).unwrap();
 
-          setSessionId(response?.session_id);
-
-          setMessages((prev) => [
-            ...prev,
-            {
+          dispatch(
+            addMessage({
               sender: "bot",
               text: "Please wait for agent to reply.",
-            },
-          ]);
+            }),
+          );
 
-          setStep("chatStarted");
+          dispatch(setStep("chatStarted"));
         } catch (error) {
-          setMessages((prev) => [
-            ...prev,
-            {
+          dispatch(
+            addMessage({
               sender: "bot",
               text: error || "Failed to connect support.",
-            },
-          ]);
+            }),
+          );
         }
 
         return;
       }
 
-      // invalid
-      setMessages((prev) => [
-        ...prev,
-        {
+      dispatch(
+        addMessage({
           sender: "bot",
           text: "Please select Yes or No.",
-        },
-      ]);
+        }),
+      );
 
       return;
     }
@@ -656,19 +765,17 @@ const ChatBot = () => {
       try {
         await dispatch(
           sendMessage({
-            session_id: sessionId,
+            session_id: supportData?.session_id,
             message: messageText,
           }),
         ).unwrap();
       } catch (error) {
-        setMessages((prev) => [
-          ...prev,
-
-          {
+        dispatch(
+          addMessage({
             sender: "bot",
             text: error || "Failed to send message.",
-          },
-        ]);
+          }),
+        );
       }
 
       return;
@@ -677,14 +784,13 @@ const ChatBot = () => {
 
   const handleTranscriptDownload = (type) => {
     // no session id
-    if (!sessionId) {
-      setMessages((prev) => [
-        ...prev,
-        {
+    if (!supportData?.session_id) {
+      dispatch(
+        addMessage({
           sender: "bot",
           text: "Transcript download will be available after connecting and chatting with an agent.",
-        },
-      ]);
+        }),
+      );
 
       return;
     }
@@ -720,21 +826,15 @@ const ChatBot = () => {
   }, [messages]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!supportData?.session_id) return;
 
-    console.log("Joining Channel:", `chat.${sessionId}`);
+    console.log("Joining Channel:", `chat.${supportData?.session_id}`);
 
-    const channel = echo.channel(`chat.${sessionId}`);
+    const channel = echo.channel(`chat.${supportData?.session_id}`);
 
     channel.subscribed(() => {
       console.log("✅ Channel Subscribed");
     });
-
-    // channel.listenToAll((event, data) => {
-    //   console.log("EVENT:", event);
-
-    //   console.log("DATA:", data);
-    // });
 
     // SOCKET CONNECTED
     echo.connector.pusher.connection.bind("connected", () => {
@@ -745,72 +845,83 @@ const ChatBot = () => {
     channel.listen(".message.sent", (e) => {
       if (e.sender === "user") return;
 
-      setMessages((prev) => [
-        ...prev,
-        {
+      channel.listen(".user.typing", (e) => {
+        if (e.sender === "agent") {
+          setIsTyping(true);
+
+          clearTimeout(window.agentTypingTimeout);
+
+          window.agentTypingTimeout = setTimeout(() => {
+            setIsTyping(false);
+          }, 2000);
+        }
+      });
+
+      dispatch(
+        addMessage({
           sender: e.sender,
           text: e.message,
-        },
-      ]);
+        }),
+      );
     });
 
     return () => {
-      echo.leave(`chat.${sessionId}`);
+      echo.leave(`chat.${supportData?.session_id}`);
     };
-  }, [sessionId]);
+  }, [supportData?.session_id]);
 
   useEffect(() => {
     const style = document.createElement("style");
 
     style.innerHTML = `
+    @keyframes slideUp {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
 
-  @keyframes slideUp {
-    from {
-      transform: translateY(30px);
-      opacity: 0;
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
 
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255,102,0,0.5);
+      }
 
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(255,102,0,0.5);
-    }
+      70% {
+        box-shadow: 0 0 0 12px rgba(255,102,0,0);
+      }
 
-    70% {
-      box-shadow: 0 0 0 12px rgba(255,102,0,0);
-    }
-
-    100% {
-      box-shadow: 0 0 0 0 rgba(255,102,0,0);
-    }
-  }
-
-  @keyframes bounce {
-    0%, 80%, 100% {
-      transform: scale(0.8);
-      opacity: 0.5;
+      100% {
+        box-shadow: 0 0 0 0 rgba(255,102,0,0);
+      }
     }
 
-    40% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
+    @keyframes bounce {
+      0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
 
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
   `;
 
     document.head.appendChild(style);
 
     return () => {
-      document.head.removeChild(style);
+      // safe cleanup
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
     };
   }, []);
-
   return (
     <>
       {/* FLOATING BUTTON */}
@@ -846,7 +957,7 @@ const ChatBot = () => {
                     fontWeight: 600,
                   }}
                 >
-                  Support Bot
+                  Support Chat
                 </div>
 
                 <div style={styles.online}>● Online</div>
@@ -920,7 +1031,7 @@ const ChatBot = () => {
           {/* MESSAGES */}
 
           <div style={styles.messages}>
-            {messages.map((msg, index) => (
+            {messages?.map((msg, index) => (
               <div
                 key={index}
                 style={{
@@ -937,17 +1048,86 @@ const ChatBot = () => {
                     ...styles.bubble,
 
                     background:
-                      msg.sender === "user"
-                        ? "linear-gradient(135deg, #ff6600, #ff8533)"
-                        : "#f1f1f1",
+                      msg.type === "image"
+                        ? "transparent"
+                        : msg.sender === "user"
+                          ? "linear-gradient(135deg, #ff6600, #ff8533)"
+                          : "#f1f1f1",
 
                     color: msg.sender === "user" ? "#fff" : "#000",
+
+                    padding: msg.type === "image" ? 0 : "12px 14px",
                   }}
                 >
-                  {msg.text}
+                  {msg.type === "image" ? (
+                    <div style={{ position: "relative" }}>
+                      <img
+                        src={msg.image}
+                        alt="uploaded"
+                        style={{
+                          width: "220px",
+                          maxWidth: "100%",
+                          borderRadius: "14px",
+                          objectFit: "cover",
+                          border: "1px solid #eee",
+                          opacity: msg.isUploading ? 0.6 : 1,
+                        }}
+                      />
+
+                      {msg.isUploading && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "rgba(0,0,0,0.35)",
+                            borderRadius: "14px",
+                            color: "#fff",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                          }}
+                        >
+                          Uploading...
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    msg.text
+                  )}
                 </div>
               </div>
             ))}
+
+            {isTyping && (
+              <div style={styles.typingWrapper}>
+                <div style={styles.botAvatar}>B</div>
+
+                <div style={styles.typing}>
+                  <div
+                    style={{
+                      ...styles.typingDot,
+                      animationDelay: "0s",
+                    }}
+                  ></div>
+
+                  <div
+                    style={{
+                      ...styles.typingDot,
+                      animationDelay: "0.2s",
+                    }}
+                  ></div>
+
+                  <div
+                    style={{
+                      ...styles.typingDot,
+                      animationDelay: "0.4s",
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
 
             <div ref={chatEndRef} />
           </div>
@@ -1011,15 +1191,14 @@ const ChatBot = () => {
 
                 <button
                   onClick={() => {
-                    setMessages((prev) => [
-                      ...prev,
-                      {
+                    dispatch(
+                      addMessage({
                         sender: "bot",
                         text: "Do you want to connect to an agent?",
-                      },
-                    ]);
+                      }),
+                    );
 
-                    setStep("agentConfirmation");
+                    dispatch(setStep("agentConfirmation"));
                   }}
                   style={styles.quickBtn}
                 >
@@ -1045,7 +1224,83 @@ const ChatBot = () => {
                 </button>
               </>
             )}
+            {step === "chatStarted" && (
+              <button
+                onClick={() => {
+                  dispatch(
+                    addMessage({
+                      sender: "bot",
+                      text: "Are you sure you want to close the chat?",
+                    }),
+                  );
 
+                  dispatch(setStep("confirmCloseChat"));
+                }}
+                style={styles.quickBtn}
+              >
+                Close Chat
+              </button>
+            )}
+
+            {step === "confirmCloseChat" && (
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      await dispatch(
+                        closeChat({
+                          session_id: supportData?.session_id,
+                        }),
+                      ).unwrap();
+
+                      dispatch(
+                        addMessage({
+                          sender: "bot",
+                          text: "Chat closed successfully.",
+                        }),
+                      );
+
+                      dispatch(
+                        addMessage({
+                          sender: "bot",
+                          text: "Thank you for contacting Babvip Support 😊",
+                        }),
+                      );
+
+                      dispatch(setStep("chatClosed"));
+                    } catch (error) {
+                      dispatch(
+                        addMessage({
+                          sender: "bot",
+                          text: error || "Failed to close chat.",
+                        }),
+                      );
+
+                      dispatch(setStep("chatStarted"));
+                    }
+                  }}
+                  style={styles.quickBtn}
+                >
+                  Yes
+                </button>
+
+                <button
+                  onClick={() => {
+                    dispatch(
+                      addMessage({
+                        sender: "bot",
+                        text: "Chat resumed successfully.",
+                      }),
+                    );
+
+                    dispatch(setStep("chatStarted"));
+                  }}
+                  style={styles.quickBtn}
+                >
+                  No
+                </button>
+              </>
+            )}
             {step === "chatClosed" && (
               <button
                 onClick={() => handleSend("Restart Chat")}
@@ -1067,15 +1322,39 @@ const ChatBot = () => {
           {/* INPUT */}
 
           <div style={styles.inputWrapper}>
-            <span style={styles.leftIcon}>
-              <GrAttachment />
-            </span>
+            <>
+              <button
+                type="button"
+                disabled={step !== "chatStarted"}
+                title={
+                  step !== "chatStarted"
+                    ? "Image upload available after connecting with agent"
+                    : "Upload image"
+                }
+                onClick={() => fileInputRef.current.click()}
+                style={{
+                  ...styles.leftIconBtn,
+                  opacity: step !== "chatStarted" ? 0.5 : 1,
+                  cursor: step !== "chatStarted" ? "not-allowed" : "pointer",
+                }}
+              >
+                <GrAttachment />
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleImageUpload}
+              />
+            </>
 
             <input
               type="text"
               placeholder="Type your message here..."
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => handleTyping(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
               style={styles.inputField}
             />
@@ -1195,7 +1474,7 @@ const styles = {
     bottom: "90px",
     right: "20px",
     width: "360px",
-    height: "620px",
+    height: "500px",
     background: "#fff",
     borderRadius: "24px",
     display: "flex",
@@ -1328,5 +1607,16 @@ const styles = {
     marginBottom: "12px",
     width: "fit-content",
     fontWeight: "600",
+  },
+
+  leftIconBtn: {
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#666",
+    fontSize: "18px",
   },
 };
